@@ -1,125 +1,56 @@
-import React, { useEffect, useRef, useState } from "react";
-import { BrowserMultiFormatReader } from "@zxing/browser";
+import React, { useEffect, useState } from "react";
+import {
+  Html5QrcodeScanner,
+  Html5QrcodeSupportedFormats,
+} from "html5-qrcode";
 import "./App.css";
 
 function App() {
-  const videoRef = useRef(null);
-
-  const [barcode, setBarcode] = useState("");
+  const [scanResult, setScanResult] = useState("");
 
   useEffect(() => {
-    const codeReader = new BrowserMultiFormatReader();
+    const scanner = new Html5QrcodeScanner(
+      "reader",
+      {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.UPC_A,
+        ],
+      },
+      false
+    );
 
-    let controls;
-
-    const startScanner = async () => {
-      try {
-        controls = await codeReader.decodeFromVideoDevice(
-          undefined,
-          videoRef.current,
-          (result, error) => {
-            if (result) {
-              const scannedBarcode = result.getText();
-
-              // Prevent duplicate scans
-              if (barcode === scannedBarcode) return;
-
-              setBarcode(scannedBarcode);
-
-              console.log("Scanned Barcode:", scannedBarcode);
-
-              // Beep Sound
-              const audio = new Audio(
-                "https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"
-              );
-
-              audio.play();
-
-              // Reset after 2 sec
-              setTimeout(() => {
-                setBarcode("");
-              }, 2000);
-            }
-          }
-        );
-      } catch (err) {
-        console.error(err);
+    scanner.render(
+      (decodedText) => {
+        setScanResult(decodedText);
+      },
+      (error) => {
+        console.log(error);
       }
-    };
-
-    startScanner();
+    );
 
     return () => {
-      if (controls) {
-        controls.stop();
-      }
+      scanner.clear().catch((err) => console.log(err));
     };
-  }, [barcode]);
-
-  // Print Barcode
-  const handlePrint = () => {
-    const printWindow = window.open("", "", "width=400,height=300");
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Print Barcode</title>
-
-          <style>
-            body{
-              font-family: Arial;
-              text-align:center;
-              padding-top:50px;
-            }
-
-            .barcode{
-              font-size:32px;
-              font-weight:bold;
-            }
-          </style>
-        </head>
-
-        <body>
-          <h2>Scanned Barcode</h2>
-
-          <div class="barcode">
-            ${barcode}
-          </div>
-
-          <script>
-            window.onload = function(){
-              window.print();
-              window.close();
-            }
-          </script>
-        </body>
-      </html>
-    `);
-
-    printWindow.document.close();
-  };
+  }, []);
 
   return (
     <div className="container">
-      <h1>Real Product Barcode Scanner</h1>
+      <h1>Product QR / Barcode Scanner</h1>
 
-      <video ref={videoRef} className="video" />
+      <div id="reader"></div>
 
       <div className="result-box">
-        <h2>Barcode Number</h2>
+        <h2>Scanned Product Code</h2>
 
-        {barcode ? (
-          <>
-            <div className="barcode-number">
-              {barcode}
-            </div>
-
-            <button onClick={handlePrint}>
-              Print Barcode
-            </button>
-          </>
+        {scanResult ? (
+          <p className="success">{scanResult}</p>
         ) : (
-          <p>Scan Any Real Product</p>
+          <p className="waiting">Waiting for scan...</p>
         )}
       </div>
     </div>
